@@ -24,7 +24,14 @@ interface GifPlayerState {
     @if(status() === 'loading'){
     <mat-progress-spinner mode="indeterminate" diameter="50" />
     }
-    <div>
+    <div
+      class="preload-background"
+      [style]="getStyle()"
+      [class.blur]="
+        status() != 'loaded' &&
+        !['/assets/nsfw.png', '/assets/default.png'].includes(thumbnail())
+      "
+    >
       <video
         (click)="togglePlay$.next()"
         #gifPlayer
@@ -139,5 +146,15 @@ export class GifPlayerComponent {
         playing ? video.play() : video.pause();
       }
     });
+  }
+
+  getStyle() {
+    const style =
+      'background-image :url(' +
+      "'" +
+      this.thumbnail() +
+      "'" +
+      ') 50% 50% / cover no-repeat';
+    return style;
   }
 }
