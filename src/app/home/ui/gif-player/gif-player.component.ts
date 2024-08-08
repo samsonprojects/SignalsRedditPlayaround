@@ -1,15 +1,15 @@
 import {
   Component,
+  ElementRef,
   computed,
   effect,
-  ElementRef,
   input,
   signal,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { fromEvent, Subject, switchMap } from 'rxjs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Subject, fromEvent, switchMap } from 'rxjs';
 
 interface GifPlayerState {
   playing: boolean;
@@ -17,18 +17,17 @@ interface GifPlayerState {
 }
 
 @Component({
-  selector: 'app-gif-player',
   standalone: true,
-  imports: [MatProgressSpinnerModule],
+  selector: 'app-gif-player',
   template: `
-    @if(status() === 'loading'){
+    @if (status() === 'loading') {
     <mat-progress-spinner mode="indeterminate" diameter="50" />
     }
     <div
       class="preload-background"
-      [style]="getStyle()"
+      [style.background]="'url(' + thumbnail() + ') 50% 50% / cover no-repeat'"
       [class.blur]="
-        status() != 'loaded' &&
+        status() !== 'loaded' &&
         !['/assets/nsfw.png', '/assets/default.png'].includes(thumbnail())
       "
     >
@@ -78,6 +77,7 @@ interface GifPlayerState {
       }
     `,
   ],
+  imports: [MatProgressSpinnerModule],
 })
 export class GifPlayerComponent {
   src = input.required<string>();
@@ -95,10 +95,12 @@ export class GifPlayerComponent {
   playing = computed(() => this.state().playing);
   status = computed(() => this.state().status);
 
-  //sources
-  //are things we want to react to in order to trigger state updates
+  // sources
   togglePlay$ = new Subject<void>();
 
+  // note: unfortunately, we need to check if a play has been triggered here as
+  // subscribing to the 'loadstart' event will actually trigger a load, which we
+  // don't want unless it is supposed to be playing
   videoLoadStart$ = this.togglePlay$.pipe(
     switchMap(() => this.videoElement$),
     switchMap(({ nativeElement }) => fromEvent(nativeElement, 'loadstart'))
@@ -110,34 +112,32 @@ export class GifPlayerComponent {
 
   constructor() {
     //reducers
-    this.videoLoadStart$.pipe(takeUntilDestroyed()).subscribe(() =>
-      this.state.update((state) => ({
-        ...state,
-        status: 'loading',
-      }))
-    );
+    this.videoLoadStart$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() =>
+        this.state.update((state) => ({ ...state, status: 'loading' }))
+      );
 
-    this.videoLoadComplete$.pipe(takeUntilDestroyed()).subscribe(() =>
-      this.state.update((state) => ({
-        ...state,
-        status: 'loaded',
-      }))
-    );
+    this.videoLoadComplete$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() =>
+        this.state.update((state) => ({ ...state, status: 'loaded' }))
+      );
 
-    this.togglePlay$.pipe(takeUntilDestroyed()).subscribe(() =>
-      this.state.update((state) => ({
-        ...state,
-        playing: !state.playing,
-      }))
-    );
+    this.togglePlay$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() =>
+        this.state.update((state) => ({ ...state, playing: !state.playing }))
+      );
 
-    //effects are triggered when any signals values change
+    // effects
     effect(() => {
       const { nativeElement: video } = this.videoElement();
       const playing = this.playing();
       const status = this.status();
 
       if (!video) return;
+
       if (playing && status === 'initial') {
         video.load();
       }
@@ -146,15 +146,5 @@ export class GifPlayerComponent {
         playing ? video.play() : video.pause();
       }
     });
-  }
-
-  getStyle() {
-    const style =
-      'background-image :url(' +
-      "'" +
-      this.thumbnail() +
-      "'" +
-      ') 50% 50% / cover no-repeat';
-    return style;
   }
 }
