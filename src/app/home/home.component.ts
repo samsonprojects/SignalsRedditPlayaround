@@ -34,11 +34,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
       class="grid-container"
     ></app-gif-list>
     }
-    <app-gif-list
-      [gifs]="redditService.gifs()"
-      (scrolled)="redditService.pagination$.next(redditService.lastKnownGif())"
-      class="grid-container"
-    ></app-gif-list>
   `,
   styles: ``,
   providers: [RedditService, InfiniteScrollModule],

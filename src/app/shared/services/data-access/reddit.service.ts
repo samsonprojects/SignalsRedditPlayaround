@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { FormControl } from '@angular/forms';
 import {
+  BehaviorSubject,
   EMPTY,
   Subject,
   catchError,
@@ -11,6 +12,7 @@ import {
   distinctUntilChanged,
   expand,
   map,
+  of,
   startWith,
   switchMap,
   tap,
@@ -22,6 +24,7 @@ export interface GifsState {
   error: string | null;
   loading: boolean;
   lastKnownGif: string | null;
+  testProp: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -37,6 +40,7 @@ export class RedditService {
     error: null,
     loading: true,
     lastKnownGif: null,
+    testProp: '',
   });
 
   // selectors
@@ -44,6 +48,7 @@ export class RedditService {
   error = computed(() => this.state().error);
   loading = computed(() => this.state().loading);
   lastKnownGif = computed(() => this.state().lastKnownGif);
+  testProp = computed(() => this.state().testProp);
 
   //sources
   pagination$ = new Subject<string | null>();
@@ -113,17 +118,18 @@ export class RedditService {
       }))
     );
 
-    this.error$
-      .pipe(
-        tap(() => console.log('error triggered')),
-        takeUntilDestroyed()
-      )
-      .subscribe((error) =>
-        this.state.update((state) => ({
+    this.error$.pipe(takeUntilDestroyed()).subscribe((error) => {
+      console.log('Before update', this.state());
+
+      this.state.update((state) => {
+        const newState = {
           ...state,
           error,
-        }))
-      );
+        };
+        console.log('After updated', newState);
+        return newState;
+      });
+    });
   }
 
   private fetchFromReddit(
@@ -139,6 +145,7 @@ export class RedditService {
       .pipe(
         catchError((err) => {
           this.handleError(err);
+          //return of('undefined');
           return EMPTY;
         }),
         map((response) => {
