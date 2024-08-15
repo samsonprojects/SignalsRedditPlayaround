@@ -24,13 +24,13 @@ export interface GifsState {
   error: string | null;
   loading: boolean;
   lastKnownGif: string | null;
-  testProp: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class RedditService {
   private http = inject(HttpClient);
   private gifsPerPage = 20;
+  private preDeterminedList = ['safe', 'lol'];
 
   subredditFormControl = new FormControl();
 
@@ -40,7 +40,6 @@ export class RedditService {
     error: null,
     loading: true,
     lastKnownGif: null,
-    testProp: '',
   });
 
   // selectors
@@ -48,10 +47,10 @@ export class RedditService {
   error = computed(() => this.state().error);
   loading = computed(() => this.state().loading);
   lastKnownGif = computed(() => this.state().lastKnownGif);
-  testProp = computed(() => this.state().testProp);
 
   //sources
   pagination$ = new Subject<string | null>();
+  selectRandomSubreddit$ = new Subject<boolean>();
   private error$ = new Subject<string | null>();
 
   private subredditChanged$ = this.subredditFormControl.valueChanges.pipe(
@@ -59,6 +58,19 @@ export class RedditService {
     distinctUntilChanged(),
     startWith('gifs'),
     map((subreddit) => (subreddit.length ? subreddit : 'gifs'))
+  );
+
+  private setRandomRedditGifs$ = this.selectRandomSubreddit$.pipe(
+    debounceTime(300),
+    switchMap(() => {
+      console.log('set random redddit gifs selected ');
+      const randomGifsString =
+        this.preDeterminedList[
+          Math.floor(Math.random() * this.preDeterminedList.length)
+        ];
+      console.log('string set', randomGifsString);
+      return this.fetchFromReddit(randomGifsString, null, 100);
+    })
   );
 
   private gifsLoaded$ = this.subredditChanged$.pipe(
@@ -118,18 +130,19 @@ export class RedditService {
       }))
     );
 
-    this.error$.pipe(takeUntilDestroyed()).subscribe((error) => {
-      console.log('Before update', this.state());
+    this.error$.pipe(takeUntilDestroyed()).subscribe((error) =>
+      this.state.update((state) => ({
+        ...state,
+        error,
+      }))
+    );
 
-      this.state.update((state) => {
-        const newState = {
-          ...state,
-          error,
-        };
-        console.log('After updated', newState);
-        return newState;
-      });
-    });
+    this.setRandomRedditGifs$.pipe(takeUntilDestroyed()).subscribe((response) =>
+      this.state.update((state) => ({
+        ...state,
+        gifs: [...response.gifs],
+      }))
+    );
   }
 
   private fetchFromReddit(
@@ -145,7 +158,6 @@ export class RedditService {
       .pipe(
         catchError((err) => {
           this.handleError(err);
-          //return of('undefined');
           return EMPTY;
         }),
         map((response) => {

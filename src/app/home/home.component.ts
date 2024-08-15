@@ -18,7 +18,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     InfiniteScrollDirective,
   ],
   template: `
-    <app-search-bar [subredditFormControl]="redditService.subredditFormControl">
+    <app-search-bar
+      [subredditFormControl]="redditService.subredditFormControl"
+      (selectRandomReddit)="redditService.selectRandomSubreddit$.next(true)"
+    >
     </app-search-bar>
 
     @if(redditService.loading()){
